@@ -2,7 +2,7 @@
 
 ## 1. Validação inicial
 
-O laboratório começou com a inspeção dos filesystems, hostname e versão do sistema operacional. A evidência confirma Oracle Linux Server 8.10 e volumes separados para software/dados.
+O trabalho começou com a inspeção dos filesystems, hostname e versão do sistema operacional. A evidência confirma Oracle Linux Server 8.10 e volumes separados para software/dados.
 
 Evidência: `images/01-os-and-storage-validation.png`.
 
@@ -84,6 +84,6 @@ Evidência: `images/07-release-update-validation.png`.
 
 ## Observações
 
-- Este material documenta um laboratório e não substitui a documentação oficial da Oracle.
+- Este material não substitui a documentação oficial da Oracle.
 - Antes de atualizar outro ambiente, devem ser avaliados pré-requisitos, conflitos, espaço, backup, plano de rollback e notas do patch correspondente.
 - Os exemplos não contêm senhas, IPs, hostnames ou nomes reais do ambiente.
