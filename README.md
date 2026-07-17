@@ -4,8 +4,6 @@
 
 Este projeto documenta a implantação do Oracle Database 19c em Oracle Linux, a criação de uma arquitetura Multitenant com CDB/PDB e a aplicação de um Release Update com OPatch e datapatch.
 
-O material foi organizado a partir de uma atividade técnica de laboratório. Nomes de servidores, endereços IP, credenciais, identificadores do banco e demais informações do ambiente foram removidos ou anonimizados.
-
 ## Objetivo
 
 Demonstrar um fluxo reproduzível para:
@@ -142,7 +140,7 @@ O datapatch indicou um componente SDO inválido na PDB seed e recomendou a recom
 
 ## Resultados
 
-- Oracle Database 19c instalado no laboratório;
+- Oracle Database 19c instalado e validado;
 - arquitetura Multitenant criada e aberta;
 - Release Update aplicado ao Oracle Home;
 - alterações SQL aplicadas nos containers;
