@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Exemplo derivado do procedimento documentado.
-# Defina as variáveis com valores do seu laboratório antes de executar.
+# Defina as variáveis com valores apropriados ao seu ambiente antes de executar.
 
 export ORACLE_BASE="/u01/app/oracle"
 export ORACLE_HOME="/u01/app/oracle/product/19c/dbhome_1"
