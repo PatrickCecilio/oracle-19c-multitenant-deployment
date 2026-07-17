@@ -1,0 +1,699 @@
+==============================================================================
+PROCEDIMENTO DE RESTORE E RECOVER — CDBPROD
+==============================================================================
+
+Objetivo:
+Realizar o restore e recover do banco Oracle Database 19c Enterprise Edition,
+ambiente CDBPROD, após identificação de falha na inicialização ocasionada pela
+ausência dos arquivos de parâmetro e dos control files físicos do banco.
+
+Ambiente:
+
+Banco/CDB: CDBPROD
+PDB: PROD
+Oracle Home: /u01/app/oracle/product/19.28/dbhome_1
+Oracle Base: /u01/app/oracle
+Datafiles: /u01/oradata/CDBPROD
+FRA: /u02/fast_recovery_area
+Backup RMAN: /u02/backup/prod/rman/database
+Versão Oracle: Oracle Database 19c Enterprise Edition 19.28.0.0.0
+
+
+==============================================================================
+1. VALIDAÇÃO INICIAL DO AMBIENTE
+==============================================================================
+
+Acessar o servidor com o usuário oracle:
+
+sudo su - oracle
+
+Carregar o ambiente Oracle:
+
+. oraenv
+
+Informar o SID:
+
+CDBPROD
+
+Validar o listener:
+
+lsnrctl status
+
+Validar se a instância estava em execução:
+
+ps -ef | grep pmon
+
+Resultado identificado:
+
+Não havia processo PMON ativo para o banco CDBPROD, indicando que a instância
+estava parada.
+
+
+==============================================================================
+2. TENTATIVA DE CONEXÃO E STARTUP DO BANCO
+==============================================================================
+
+Acessar o SQL*Plus:
+
+sqlplus / as sysdba
+
+Foi identificado que a conexão ocorreu em uma instância idle:
+
+Connected to an idle instance.
+
+Tentativa inicial de startup:
+
+startup;
+
+Erro apresentado:
+
+ORA-01078: failure in processing system parameters
+LRM-00109: could not open parameter file
+'/u01/app/oracle/product/19.28/dbhome_1/dbs/initCDBPROD.ora'
+
+Causa:
+
+O Oracle não localizou o arquivo de parâmetro initCDBPROD.ora nem o
+spfileCDBPROD.ora no diretório padrão do Oracle Home.
+
+
+==============================================================================
+3. VALIDAÇÃO DO DIRETÓRIO DBS
+==============================================================================
+
+Acessar o diretório dbs:
+
+cd /u01/app/oracle/product/19.28/dbhome_1/dbs
+
+Listar os arquivos:
+
+ls -lh
+
+Foi identificado que existiam arquivos como:
+
+hc_CDBPROD.dat
+init.ora
+lkCDBPROD
+orapwCDBPROD
+snapcf_CDBPROD.f
+
+Porém não existia:
+
+spfileCDBPROD.ora
+initCDBPROD.ora
+
+
+==============================================================================
+4. CRIAÇÃO MANUAL DO PFILE initCDBPROD.ora
+==============================================================================
+
+Com base nos parâmetros existentes no alert log do banco, foi criado manualmente
+o arquivo initCDBPROD.ora:
+
+cat > /u01/app/oracle/product/19.28/dbhome_1/dbs/initCDBPROD.ora <<'EOF'
+*.audit_file_dest='/u01/app/oracle/admin/CDBPROD/adump'
+*.audit_trail='DB'
+*.compatible='19.0.0'
+*.control_files='/u01/oradata/CDBPROD/control01.ctl','/u02/fast_recovery_area/CDBPROD/control02.ctl'
+*.db_block_size=8192
+*.db_name='CDBPROD'
+*.db_recovery_file_dest='/u02/fast_recovery_area'
+*.db_recovery_file_dest_size=20G
+*.diagnostic_dest='/u01/app/oracle'
+*.dispatchers='(PROTOCOL=TCP) (SERVICE=CDBPRODXDB)'
+*.enable_pluggable_database=TRUE
+*.nls_date_format='DD/MM/RRRR HH24:MI:SS'
+*.nls_language='AMERICAN'
+*.nls_territory='AMERICA'
+*.open_cursors=300
+*.pga_aggregate_target=1G
+*.processes=300
+*.remote_login_passwordfile='EXCLUSIVE'
+*.sga_target=3G
+*.undo_tablespace='UNDOTBS1'
+EOF
+
+Validar a criação do arquivo:
+
+ls -lh /u01/app/oracle/product/19.28/dbhome_1/dbs/initCDBPROD.ora
+
+cat /u01/app/oracle/product/19.28/dbhome_1/dbs/initCDBPROD.ora
+
+Resultado obtido:
+
+O arquivo initCDBPROD.ora foi criado com sucesso no diretório dbs.
+
+
+==============================================================================
+5. TENTATIVA DE STARTUP COM PFILE
+==============================================================================
+
+Acessar o SQL*Plus:
+
+sqlplus / as sysdba
+
+Executar o startup utilizando o PFILE criado:
+
+startup pfile='/u01/app/oracle/product/19.28/dbhome_1/dbs/initCDBPROD.ora';
+
+Resultado:
+
+A instância foi iniciada, porém o banco não conseguiu montar.
+
+Erro apresentado:
+
+ORA-00205: error in identifying control file, check alert log for more info
+
+No alert log foi identificado:
+
+ORA-00210: cannot open the specified control file
+ORA-00202: control file: '/u02/fast_recovery_area/CDBPROD/control02.ctl'
+ORA-27037: unable to obtain file status
+Linux-x86_64 Error: 2: No such file or directory
+
+ORA-00210: cannot open the specified control file
+ORA-00202: control file: '/u01/oradata/CDBPROD/control01.ctl'
+ORA-27037: unable to obtain file status
+Linux-x86_64 Error: 2: No such file or directory
+
+Causa:
+
+Os control files definidos no PFILE não existiam fisicamente nos caminhos
+esperados.
+
+
+==============================================================================
+6. VALIDAÇÃO FÍSICA DOS CONTROL FILES
+==============================================================================
+
+Foram validados os caminhos esperados dos control files:
+
+ls -lh /u01/oradata/CDBPROD/control01.ctl
+
+ls -lh /u02/fast_recovery_area/CDBPROD/control02.ctl
+
+Resultado:
+
+Os arquivos não existiam.
+
+Foi realizada busca por arquivos de control file ou backups de control file:
+
+find /u01 /u02 -type f \( -name "control*.ctl" -o -name "*.ctl" \) 2>/dev/null
+
+Foram encontrados backup pieces de control file no diretório RMAN:
+
+/u02/backup/prod/rman/database/controlfile_CDBPROD_20260611_0o4qbppf_24_1_1.ctl
+/u02/backup/prod/rman/database/controlfile_CDBPROD_20260611_0v4qbpq9_31_1_1.ctl
+
+Observação:
+
+Os arquivos acima são backup pieces gerados pelo RMAN e não devem ser copiados
+diretamente como control files físicos. O restore deve ser feito pelo RMAN.
+
+
+==============================================================================
+7. STARTUP EM NOMOUNT PARA RESTORE DO CONTROLFILE
+==============================================================================
+
+Como o banco não conseguia montar, a instância foi iniciada em modo NOMOUNT com
+o PFILE:
+
+sqlplus / as sysdba
+
+shutdown abort;
+
+startup nomount pfile='/u01/app/oracle/product/19.28/dbhome_1/dbs/initCDBPROD.ora';
+
+exit;
+
+
+==============================================================================
+8. RESTORE DO CONTROLFILE VIA RMAN
+==============================================================================
+
+Acessar o RMAN:
+
+rman target /
+
+Executar o restore do controlfile utilizando o backup piece mais recente:
+
+restore controlfile from '/u02/backup/prod/rman/database/controlfile_CDBPROD_20260611_0v4qbpq9_31_1_1.ctl';
+
+Resultado obtido:
+
+channel ORA_DISK_1: restoring control file
+channel ORA_DISK_1: restore complete
+output file name=/u01/oradata/CDBPROD/control01.ctl
+output file name=/u02/fast_recovery_area/CDBPROD/control02.ctl
+
+Conclusão da etapa:
+
+O controlfile foi restaurado com sucesso nos dois caminhos definidos no PFILE:
+
+/u01/oradata/CDBPROD/control01.ctl
+/u02/fast_recovery_area/CDBPROD/control02.ctl
+
+
+==============================================================================
+9. MONTAGEM DO BANCO
+==============================================================================
+
+Ainda no RMAN, montar o banco:
+
+alter database mount;
+
+Resultado obtido:
+
+Statement processed
+
+Conclusão da etapa:
+
+O banco CDBPROD foi montado com sucesso após o restore do controlfile.
+
+
+==============================================================================
+10. CATALOGAÇÃO DOS BACKUPS E ARCHIVELOGS
+==============================================================================
+
+Ainda no RMAN, catalogar os arquivos de backup e archivelogs disponíveis:
+
+catalog start with '/u02/backup/prod/rman/database/' noprompt;
+
+catalog start with '/u02/fast_recovery_area/CDBPROD/archivelog/' noprompt;
+
+Durante a catalogação, foram identificados e catalogados arquivos como:
+
+Archivelogs localizados na FRA:
+
+/u02/fast_recovery_area/CDBPROD/archivelog/2026_06_11/
+
+Autobackups localizados em:
+
+/u02/fast_recovery_area/CDBPROD/autobackup/2026_06_11/
+
+Backups RMAN localizados em:
+
+/u02/backup/prod/rman/database/
+
+
+==============================================================================
+11. CROSSCHECK DOS BACKUPS E ARCHIVELOGS
+==============================================================================
+
+Executar o crosscheck dos backups:
+
+crosscheck backup;
+
+Resultado obtido:
+
+Os backup pieces foram encontrados como AVAILABLE.
+
+Exemplo:
+
+crosschecked backup piece: found to be 'AVAILABLE'
+
+Executar o crosscheck dos archivelogs:
+
+crosscheck archivelog all;
+
+Resultado obtido:
+
+Os archivelogs foram validados com sucesso.
+
+Exemplo:
+
+validation succeeded for archived log
+
+
+==============================================================================
+12. LISTAGEM DOS BACKUPS DISPONÍVEIS
+==============================================================================
+
+Listar o resumo dos backups:
+
+list backup summary;
+
+Foram identificados backups disponíveis, incluindo:
+
+Backup level 0:
+CCM_LEVEL0_CDBPROD
+
+Backup level 1:
+CCM_LEVEL1_CDBPROD
+
+Backup de controlfile:
+CCM_CONTROLFILE_L0_CDBPROD
+CCM_CONTROLFILE_L1_CDBPROD
+
+Backup de SPFILE:
+CCM_SPFILE_L0_CDBPROD
+
+Backup de archivelog:
+CCM_ARCHIVE_L0_CDBPROD
+CCM_ARCHIVE_L1_CDBPROD
+
+
+==============================================================================
+13. LISTAGEM DOS ARCHIVELOGS DISPONÍVEIS
+==============================================================================
+
+Listar os archivelogs reconhecidos pelo RMAN:
+
+list archivelog all;
+
+Foram identificadas sequências de archivelog disponíveis na FRA, como:
+
+Thread 1 Sequence 25
+Thread 1 Sequence 26
+Thread 1 Sequence 27
+Thread 1 Sequence 28
+Thread 1 Sequence 29
+Thread 1 Sequence 30
+Thread 1 Sequence 31
+
+
+==============================================================================
+14. TENTATIVA INICIAL DE RECOVER DATABASE
+==============================================================================
+
+Executar o recover:
+
+recover database;
+
+Erro apresentado:
+
+RMAN-03002: failure of recover command
+RMAN-06094: datafile 1 must be restored
+
+Causa:
+
+O controlfile restaurado indicou que o datafile 1, correspondente ao SYSTEM do
+CDB$ROOT, precisava ser restaurado antes da execução do recover.
+
+Conclusão:
+
+Antes do recover database, tornou-se necessário executar o restore database.
+
+
+==============================================================================
+15. RESTORE COMPLETO DO BANCO
+==============================================================================
+
+Executar o restore do banco:
+
+restore database;
+
+Objetivo:
+
+Restaurar os datafiles necessários a partir dos backupsets disponíveis no RMAN.
+
+Resultado esperado:
+
+O RMAN deve restaurar os datafiles do CDB$ROOT, PDB$SEED e PDB PROD conforme
+os backups disponíveis.
+
+
+==============================================================================
+16. RECOVER COMPLETO DO BANCO
+==============================================================================
+
+Após o restore database, executar novamente:
+
+recover database;
+
+Objetivo:
+
+Aplicar os archivelogs necessários para deixar o banco em estado consistente.
+
+Resultado esperado:
+
+O recover deve finalizar sem erro.
+
+Caso o RMAN solicite algum archivelog específico ou apresente erro RMAN-06054,
+validar a disponibilidade dos archivelogs na FRA e no diretório de backup.
+
+
+==============================================================================
+17. ABERTURA DO BANCO COM RESETLOGS
+==============================================================================
+
+Após restore e recover finalizados com sucesso, abrir o banco com RESETLOGS:
+
+alter database open resetlogs;
+
+Observação:
+
+Como foi utilizado controlfile restaurado por RMAN, a abertura com RESETLOGS é
+esperada nesse tipo de procedimento.
+
+Sair do RMAN:
+
+exit;
+
+
+==============================================================================
+18. VALIDAÇÃO APÓS ABERTURA DO BANCO
+==============================================================================
+
+Acessar novamente o SQL*Plus:
+
+sqlplus / as sysdba
+
+Validar o status do banco:
+
+select name,
+       open_mode,
+       log_mode,
+       flashback_on
+from v$database;
+
+Validar os PDBs:
+
+show pdbs;
+
+Resultado obtido:
+
+CON_ID  CON_NAME    OPEN MODE
+------  ----------  ----------
+2       PDB$SEED    READ ONLY
+3       PROD        READ WRITE
+
+Conclusão:
+
+O banco foi aberto com sucesso e o PDB PROD encontra-se aberto em READ WRITE.
+
+
+==============================================================================
+19. ABERTURA E PERSISTÊNCIA DO PDB PROD
+==============================================================================
+
+Caso o PDB PROD não esteja aberto, executar:
+
+alter pluggable database PROD open;
+
+Salvar o estado de abertura automática do PDB:
+
+alter pluggable database PROD save state;
+
+Validar novamente:
+
+show pdbs;
+
+Resultado esperado:
+
+CON_ID  CON_NAME    OPEN MODE
+------  ----------  ----------
+2       PDB$SEED    READ ONLY
+3       PROD        READ WRITE
+
+
+==============================================================================
+20. RECRIAÇÃO DO SPFILE
+==============================================================================
+
+Como o banco foi iniciado com PFILE, foi recriado o SPFILE definitivo:
+
+create spfile='/u01/app/oracle/product/19.28/dbhome_1/dbs/spfileCDBPROD.ora'
+from pfile='/u01/app/oracle/product/19.28/dbhome_1/dbs/initCDBPROD.ora';
+
+Resultado obtido:
+
+File created.
+
+Validar no Linux:
+
+ls -lh /u01/app/oracle/product/19.28/dbhome_1/dbs/spfileCDBPROD.ora
+
+Observação importante:
+
+Ao executar:
+
+show parameter spfile;
+
+o campo VALUE pode aparecer vazio enquanto a instância ainda estiver rodando
+com PFILE. Isso é esperado, pois o SPFILE foi criado, mas ainda não está em uso
+pela instância atual.
+
+Para o parâmetro spfile aparecer preenchido, é necessário reiniciar o banco
+utilizando startup normal, sem informar o PFILE.
+
+
+==============================================================================
+21. TESTE DE REINICIALIZAÇÃO COM SPFILE
+==============================================================================
+
+Reiniciar o banco para confirmar que o SPFILE está funcional:
+
+shutdown immediate;
+
+startup;
+
+Validar se o banco subiu usando o SPFILE:
+
+show parameter spfile;
+
+Resultado esperado:
+
+NAME     TYPE    VALUE
+-------  ------  --------------------------------------------------------------
+spfile   string  /u01/app/oracle/product/19.28/dbhome_1/dbs/spfileCDBPROD.ora
+
+Abrir e salvar o estado do PDB:
+
+alter pluggable database PROD open;
+
+alter pluggable database PROD save state;
+
+Validar:
+
+show pdbs;
+
+
+==============================================================================
+22. REGISTRO DOS SERVIÇOS NO LISTENER
+==============================================================================
+
+Registrar os serviços no listener:
+
+alter system register;
+
+Sair do SQL*Plus:
+
+exit;
+
+Validar no Linux:
+
+lsnrctl status
+
+ps -ef | grep pmon
+
+Resultado esperado:
+
+O processo PMON do CDBPROD deve estar ativo.
+O listener deve apresentar os serviços CDBPROD e PROD registrados.
+
+
+==============================================================================
+23. BACKUP OBRIGATÓRIO APÓS RESETLOGS
+==============================================================================
+
+Após abertura do banco com RESETLOGS, executar novo backup level 0 para
+estabelecer uma nova base de recuperação:
+
+/home/oracle/CCM/scripts/backup_rman_CCM.sh level0 CDBPROD /u02/backup/prod/rman/database
+
+Objetivo:
+
+Criar uma nova base de backup consistente após a nova encarnação do banco.
+
+
+==============================================================================
+24. RESUMO DA RECUPERAÇÃO
+==============================================================================
+
+Durante o procedimento, foram realizadas as seguintes ações:
+
+1. Identificação de instância parada.
+2. Identificação de ausência do PFILE/SPFILE padrão.
+3. Criação manual do initCDBPROD.ora.
+4. Startup da instância em NOMOUNT.
+5. Identificação da ausência dos control files físicos.
+6. Localização de backup pieces de controlfile no diretório RMAN.
+7. Restore do controlfile via RMAN.
+8. Montagem do banco.
+9. Catalogação de backups e archivelogs.
+10. Crosscheck dos backup pieces e archivelogs.
+11. Identificação de necessidade de restore dos datafiles.
+12. Execução do restore database.
+13. Execução do recover database.
+14. Abertura do banco com RESETLOGS.
+15. Validação do PDB PROD em READ WRITE.
+16. Recriação do SPFILE.
+17. Orientação de reinicialização para uso efetivo do SPFILE.
+18. Registro dos serviços no listener.
+19. Execução de novo backup level 0 após RESETLOGS.
+
+
+==============================================================================
+25. STATUS ESPERADO AO FINAL
+==============================================================================
+
+Ao final do procedimento, o ambiente deve apresentar:
+
+Banco CDBPROD aberto em READ WRITE.
+PDB PROD aberto em READ WRITE.
+PDB PROD com estado salvo para abertura automática.
+ARCHIVELOG habilitado.
+FLASHBACK habilitado.
+FRA configurada em /u02/fast_recovery_area.
+Control files restaurados em:
+/u01/oradata/CDBPROD/control01.ctl
+/u02/fast_recovery_area/CDBPROD/control02.ctl
+SPFILE recriado em:
+/u01/app/oracle/product/19.28/dbhome_1/dbs/spfileCDBPROD.ora
+Backups RMAN reconhecidos e disponíveis.
+Novo backup level 0 executado após RESETLOGS.
+
+
+==============================================================================
+26. COMANDOS FINAIS DE VALIDAÇÃO
+==============================================================================
+
+sqlplus / as sysdba
+
+select name,
+       open_mode,
+       log_mode,
+       flashback_on
+from v$database;
+
+show pdbs;
+
+show parameter spfile;
+
+show parameter control_files;
+
+show parameter db_recovery_file_dest;
+
+archive log list;
+
+exit;
+
+lsnrctl status
+
+ps -ef | grep pmon
+
+ls -lh /u01/oradata/CDBPROD/control01.ctl
+ls -lh /u02/fast_recovery_area/CDBPROD/control02.ctl
+ls -lh /u01/app/oracle/product/19.28/dbhome_1/dbs/spfileCDBPROD.ora
+
+
+==============================================================================
+FIM DO PROCEDIMENTO DE RESTORE E RECOVER — CDBPROD
+==============================================================================
+"""
+
+path = Path("/mnt/data/procedimento_restore_recover_CDBPROD_atualizado.txt")
+path.write_text(content, encoding="utf-8")
+print(f"Arquivo gerado: {path}")
+print(f"Tamanho: {path.stat().st_size} bytes")

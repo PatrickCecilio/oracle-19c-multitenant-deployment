@@ -1,0 +1,292 @@
+==============================================================================
+PROCEDIMENTO — MOVE DE DATAFILE DO PDB PROD PARA OUTRO CAMINHO
+==============================================================================
+1. VALIDAÇÃO DO DIRETÓRIO ORIGINAL DO PDB
+   ===========================================================================
+
+Acessar o servidor com o usuário oracle:
+
+sudo su - oracle
+
+Acessar o diretório de datafiles do PDB PROD:
+
+cd /u01/oradata/CDBPROD/PROD/
+
+Listar os arquivos existentes:
+
+ls
+
+Resultado obtido:
+
+ccm_tbs01.dbf
+sysaux01.dbf
+system01.dbf
+temp01.dbf
+undotbs01.dbf
+users01.dbf
+
+Conclusão:
+
+O datafile ccm_tbs01.dbf existia no caminho original do PDB PROD.
+
+==============================================================================
+2. CRIAÇÃO DO NOVO DIRETÓRIO DE DESTINO
+=======================================
+
+Criar o novo diretório para receber o datafile:
+
+mkdir -p moved_datafiles
+
+Acessar o diretório criado:
+
+cd moved_datafiles/
+
+Validar o caminho atual:
+
+pwd
+
+Resultado obtido:
+
+/u01/oradata/CDBPROD/PROD/moved_datafiles
+
+Conclusão:
+
+O diretório de destino foi criado com sucesso.
+
+==============================================================================
+3. VALIDAÇÃO DO CONTAINER ATUAL
+===============================
+
+Acessar o SQL*Plus:
+
+sqlplus / as sysdba
+
+Validar o container atual:
+
+show con_name;
+
+Resultado obtido:
+
+## CON_NAME
+
+PROD
+
+Conclusão:
+
+A sessão estava conectada corretamente ao PDB PROD.
+
+==============================================================================
+4. VALIDAÇÃO DO DATAFILE ANTES DO MOVE
+======================================
+
+Executar a consulta para validar o datafile da tablespace CCM_TBS:
+
+SELECT
+df.file_name,
+df.tablespace_name,
+ROUND(df.bytes / 1024 / 1024, 2) AS alocado_mb,
+ROUND((df.bytes - SUM(NVL(fs.bytes, 0))) / 1024 / 1024, 2) AS usado_mb,
+ROUND(SUM(NVL(fs.bytes, 0)) / 1024 / 1024, 2) AS livre_mb,
+ROUND(((df.bytes - SUM(NVL(fs.bytes, 0))) / df.bytes) * 100, 2) AS pct_usado,
+ROUND(df.maxbytes / 1024 / 1024, 2) AS max_size_mb,
+df.autoextensible AS auto_ext
+FROM dba_data_files df
+LEFT JOIN dba_free_space fs ON df.file_id = fs.file_id
+WHERE df.tablespace_name = 'CCM_TBS'
+GROUP BY df.file_name, df.tablespace_name, df.bytes, df.maxbytes, df.autoextensible
+ORDER BY df.file_name;
+
+Resultado obtido antes do move:
+
+## FILE_NAME
+
+/u01/oradata/CDBPROD/PROD/ccm_tbs01.dbf
+
+TABLESPACE_NAME      ALOCADO_MB   USADO_MB   LIVRE_MB  PCT_USADO MAX_SIZE_MB AUT
+
+---
+
+CCM_TBS                     100         19         81         19    32767.98 YES
+
+Conclusão:
+
+Antes do move, o datafile da tablespace CCM_TBS estava localizado em:
+
+/u01/oradata/CDBPROD/PROD/ccm_tbs01.dbf
+
+O arquivo possuía 100 MB alocados, 19 MB usados, 81 MB livres e autoextend habilitado.
+
+==============================================================================
+5. PRIMEIRA TENTATIVA DE MOVE COM CAMINHO INCOMPLETO
+====================================================
+
+Foi executado o comando abaixo:
+
+alter database move datafile
+'/u01/oradata/CDBPROD/PROD/ccm_tbs01.dbf'
+to
+'/u01/oradata/CDBPROD/PROD/moved_datafiles';
+
+Erro apresentado:
+
+ORA-01119: error in creating database file '/u01/oradata/CDBPROD/PROD/moved_datafiles'
+ORA-27038: created file already exists
+Additional information: 1
+
+Causa:
+
+O destino informado apontava apenas para o diretório moved_datafiles, sem informar o nome final do arquivo .dbf.
+
+O Oracle tentou criar um arquivo chamado moved_datafiles, porém esse nome já existia como diretório.
+
+Correção:
+
+Informar no comando o caminho completo do novo datafile, incluindo o nome do arquivo:
+
+/u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf
+
+==============================================================================
+6. EXECUÇÃO CORRETA DO MOVE DE DATAFILE
+=======================================
+
+Executar o comando corrigido:
+
+alter database move datafile
+'/u01/oradata/CDBPROD/PROD/ccm_tbs01.dbf'
+to
+'/u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf';
+
+Resultado obtido:
+
+Database altered.
+
+Conclusão:
+
+O move online do datafile foi executado com sucesso.
+
+==============================================================================
+7. VALIDAÇÃO DO DATAFILE APÓS O MOVE
+====================================
+
+Executar novamente a consulta de validação:
+
+SELECT
+df.file_name,
+df.tablespace_name,
+ROUND(df.bytes / 1024 / 1024, 2) AS alocado_mb,
+ROUND((df.bytes - SUM(NVL(fs.bytes, 0))) / 1024 / 1024, 2) AS usado_mb,
+ROUND(SUM(NVL(fs.bytes, 0)) / 1024 / 1024, 2) AS livre_mb,
+ROUND(((df.bytes - SUM(NVL(fs.bytes, 0))) / df.bytes) * 100, 2) AS pct_usado,
+ROUND(df.maxbytes / 1024 / 1024, 2) AS max_size_mb,
+df.autoextensible AS auto_ext
+FROM dba_data_files df
+LEFT JOIN dba_free_space fs ON df.file_id = fs.file_id
+WHERE df.tablespace_name = 'CCM_TBS'
+GROUP BY df.file_name, df.tablespace_name, df.bytes, df.maxbytes, df.autoextensible
+ORDER BY df.file_name;
+
+Resultado obtido após o move:
+
+## FILE_NAME
+
+/u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf
+
+TABLESPACE_NAME      ALOCADO_MB   USADO_MB   LIVRE_MB  PCT_USADO MAX_SIZE_MB AUT
+
+---
+
+CCM_TBS                     100         19         81         19    32767.98 YES
+
+Conclusão:
+
+O datafile da tablespace CCM_TBS passou a apontar para o novo caminho:
+
+/u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf
+
+A estrutura lógica da tablespace permaneceu preservada, mantendo os mesmos valores de alocação, uso, espaço livre e autoextend.
+
+==============================================================================
+8. VALIDAÇÃO NO ALERT LOG
+=========================
+
+Foi monitorado o alert log do banco:
+
+tail -250f /u01/app/oracle/diag/rdbms/cdbprod/CDBPROD/trace/alert_CDBPROD.log
+
+Primeiro foi registrado o erro da tentativa com caminho incompleto:
+
+PROD(3):ORA-1119 signalled during: alter database move datafile
+'/u01/oradata/CDBPROD/PROD/ccm_tbs01.dbf'
+to
+'/u01/oradata/CDBPROD/PROD/moved_datafiles'...
+
+Em seguida, foi registrada a execução correta:
+
+PROD(3):alter database move datafile
+'/u01/oradata/CDBPROD/PROD/ccm_tbs01.dbf'
+to
+'/u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf'
+
+O alert log confirmou:
+
+Moving datafile /u01/oradata/CDBPROD/PROD/ccm_tbs01.dbf (13)
+to /u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf
+
+Blocks copied for file /u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf size 12800
+
+Move operation committed for file /u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf
+
+Completed: alter database move datafile
+'/u01/oradata/CDBPROD/PROD/ccm_tbs01.dbf'
+to
+'/u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf'
+
+Conclusão:
+
+O alert log confirmou que o Oracle copiou os blocos do datafile, concluiu a operação e comitou o move com sucesso.
+
+==============================================================================
+9. RESUMO DA ATIVIDADE EXECUTADA
+================================
+
+Durante a atividade, foram realizadas as seguintes ações:
+
+1. Acessado o diretório de datafiles do PDB PROD.
+2. Validada a existência do datafile original ccm_tbs01.dbf.
+3. Criado o diretório moved_datafiles.
+4. Validado o container PROD.
+5. Consultado o datafile da tablespace CCM_TBS antes do move.
+6. Identificada uma primeira tentativa incorreta apontando apenas para o diretório.
+7. Corrigido o comando informando o caminho completo do novo arquivo .dbf.
+8. Executado o ALTER DATABASE MOVE DATAFILE com sucesso.
+9. Validado no dicionário de dados que o datafile passou a apontar para o novo caminho.
+10. Validado no alert log que a operação foi concluída com sucesso.
+
+==============================================================================
+10. STATUS FINAL VALIDADO
+=========================
+
+Tablespace: CCM_TBS
+
+Datafile anterior:
+
+/u01/oradata/CDBPROD/PROD/ccm_tbs01.dbf
+
+Datafile atual:
+
+/u01/oradata/CDBPROD/PROD/moved_datafiles/ccm_tbs01.dbf
+
+Tamanho alocado: 100 MB
+Espaço usado: 19 MB
+Espaço livre: 81 MB
+Percentual usado: 19%
+Autoextend: YES
+Max size: 32767.98 MB
+
+Resultado final:
+
+Move de datafile concluído com sucesso.
+
+==============================================================================
+FIM DO PROCEDIMENTO — MOVE DE DATAFILE DO PDB PROD
+==================================================

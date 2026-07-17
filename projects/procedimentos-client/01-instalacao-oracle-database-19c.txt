@@ -1,0 +1,797 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║        🗄️  DOCUMENTAÇÃO TÉCNICA — INSTALAÇÃO ORACLE DATABASE 19C             ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+==============================================================================
+📚 SUMÁRIO
+==============================================================================
+
+  01. Objetivo
+  02. Pré-requisitos do Ambiente
+  03. Validação Inicial do Servidor
+  04. Instalação dos Pacotes de Pré-requisito
+  05. Criação dos Diretórios Oracle
+  06. Configuração do Usuário Oracle
+  07. Variáveis de Ambiente
+  08. Download e Extração do Oracle 19c
+  09. Instalação do Software Oracle
+  10. Execução dos Scripts Root
+  11. Configuração do Listener
+  12. Criação do Banco de Dados
+  13. Validação da Instância
+  14. Configuração de Conectividade
+  15. Inicialização Automática
+  16. Checklist Final
+  17. Troubleshooting Básico
+  18. Boas Práticas
+
+
+==============================================================================
+🎯 01. OBJETIVO
+==============================================================================
+
+Este documento tem como objetivo orientar a instalação do Oracle Database 19c
+em ambiente Linux, seguindo uma estrutura prática, segura e organizada.
+
+A instalação contempla:
+
+  ✅ Validação do ambiente operacional
+  ✅ Preparação de pacotes e dependências
+  ✅ Criação da estrutura Oracle
+  ✅ Configuração das variáveis de ambiente
+  ✅ Instalação do software Oracle 19c
+  ✅ Criação do banco de dados
+  ✅ Configuração do Listener
+  ✅ Validação final da instância
+
+
+==============================================================================
+🧱 02. PRÉ-REQUISITOS DO AMBIENTE
+==============================================================================
+
+╔══════════════════════════════╦══════════════════════════════════════════════╗
+║ Item                         ║ Recomendação                                ║
+╠══════════════════════════════╬══════════════════════════════════════════════╣
+║ Sistema Operacional          ║ Oracle Linux / RHEL / Rocky Linux           ║
+║ Arquitetura                  ║ x86_64                                      ║
+║ Memória RAM                  ║ Mínimo 2 GB recomendado                     ║
+║ Espaço em /tmp               ║ Mínimo 1 GB livre                           ║
+║ Diretório Oracle Base        ║ /u01/app/oracle                             ║
+║ Diretório Oracle Home        ║ /u01/app/oracle/product/19.0.0/dbhome_1     ║
+║ Diretório de Dados           ║ /u02/oradata                                ║
+║ Porta Listener               ║ 1521                                        ║
+║ Usuário Oracle               ║ oracle                                      ║
+║ Grupo Principal              ║ oinstall                                    ║
+║ Grupo DBA                    ║ dba                                         ║
+╚══════════════════════════════╩══════════════════════════════════════════════╝
+
+
+------------------------------------------------------------------------------
+💾 Recomendação de SWAP
+------------------------------------------------------------------------------
+
+╔══════════════════════════════╦══════════════════════════════════════════════╗
+║ Memória RAM                  ║ Swap Recomendado                            ║
+╠══════════════════════════════╬══════════════════════════════════════════════╣
+║ Entre 1 GB e 2 GB            ║ 1,5x o tamanho da RAM                       ║
+║ Entre 2 GB e 16 GB           ║ Igual ao tamanho da RAM                     ║
+║ Acima de 16 GB               ║ 16 GB de swap                               ║
+╚══════════════════════════════╩══════════════════════════════════════════════╝
+
+
+==============================================================================
+🔎 03. VALIDAÇÃO INICIAL DO SERVIDOR
+==============================================================================
+
+Execute os comandos abaixo como usuário root.
+
+------------------------------------------------------------------------------
+🖥️ Informações do Sistema
+------------------------------------------------------------------------------
+
+hostnamectl
+cat /etc/os-release
+uname -r
+
+------------------------------------------------------------------------------
+🧠 Memória e Swap
+------------------------------------------------------------------------------
+
+free -h
+cat /proc/meminfo | grep -i swap
+
+------------------------------------------------------------------------------
+💽 Espaço em Disco
+------------------------------------------------------------------------------
+
+df -h
+df -h /tmp
+lsblk
+
+------------------------------------------------------------------------------
+🌐 Rede e Hostname
+------------------------------------------------------------------------------
+
+hostname
+hostname -f
+ip a
+
+
+------------------------------------------------------------------------------
+📝 Configuração do /etc/hosts
+------------------------------------------------------------------------------
+
+Edite o arquivo:
+
+vi /etc/hosts
+
+Exemplo:
+
+192.168.0.100   oracle19c.localdomain   oracle19c
+
+
+==============================================================================
+📦 04. INSTALAÇÃO DOS PACOTES DE PRÉ-REQUISITO
+==============================================================================
+
+------------------------------------------------------------------------------
+✅ Opção recomendada para Oracle Linux 19c
+------------------------------------------------------------------------------
+
+yum install -y oracle-database-preinstall-19c
+
+ou
+
+dnf install -y oracle-database-preinstall-19c
+
+------------------------------------------------------------------------------
+✅ Opção recomendada para Oracle Linux 21xe
+------------------------------------------------------------------------------
+
+yum install -y oracle-database-preinstall-21c
+
+------------------------------------------------------------------------------
+📌 O pacote oracle-database-preinstall-19c realiza:
+------------------------------------------------------------------------------
+
+  ✅ Criação do usuário oracle
+  ✅ Criação dos grupos necessários
+  ✅ Ajustes de parâmetros de kernel
+  ✅ Configuração de limites do sistema
+  ✅ Instalação de bibliotecas necessárias
+
+
+------------------------------------------------------------------------------
+🧩 Instalação manual de dependências
+------------------------------------------------------------------------------
+
+Caso o pacote de pré-instalação não esteja disponível, instale manualmente:
+
+yum install -y bc binutils compat-openssl10 elfutils-libelf fontconfig \
+glibc glibc-devel ksh libaio libaio-devel libXrender libXrender-devel \
+libX11 libXau libXi libXtst libgcc libnsl librdmacm libstdc++ \
+libstdc++-devel libxcb make net-tools nfs-utils smartmontools sysstat unzip
+
+
+==============================================================================
+👤 05. CONFIGURAÇÃO DO USUÁRIO ORACLE
+==============================================================================
+
+Defina a senha do usuário oracle:
+
+passwd oracle
+
+Caso precise criar manualmente os grupos e usuário:
+
+groupadd oinstall
+groupadd dba
+groupadd oper
+
+useradd -g oinstall -G dba,oper oracle
+
+passwd oracle
+
+
+==============================================================================
+📁 06. CRIAÇÃO DOS DIRETÓRIOS ORACLE
+==============================================================================
+
+Crie a estrutura padrão:
+
+mkdir -p /u01/app/oracle/product/19.0.0/dbhome_1
+mkdir -p /u01/app/oraInventory
+mkdir -p /u02/oradata
+mkdir -p /u02/fast_recovery_area
+
+
+Ajuste o dono e permissões:
+
+chown -R oracle:oinstall /u01 /u02
+chmod -R 775 /u01 /u02
+
+
+Valide:
+
+ls -ld /u01
+ls -ld /u02
+ls -ld /u01/app/oracle
+ls -ld /u01/app/oracle/product/19.0.0/dbhome_1
+
+
+==============================================================================
+🌎 07. CONFIGURAÇÃO DAS VARIÁVEIS DE AMBIENTE
+==============================================================================
+
+Acesse o usuário oracle:
+
+su - oracle
+
+Edite o arquivo de perfil:
+
+vi ~/.bash_profile
+
+
+Adicione o conteúdo abaixo:
+
+#=============================================================================
+# Oracle Database 19c Environment
+#=============================================================================
+
+export ORACLE_BASE=/u01/app/oracle
+export ORACLE_HOME=$ORACLE_BASE/product/19.0.0/dbhome_1
+export ORACLE_SID=ORCL
+export ORACLE_UNQNAME=ORCL
+
+export PATH=$ORACLE_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib
+
+umask 022
+
+
+Carregue as variáveis:
+
+source ~/.bash_profile
+
+
+Valide:
+
+echo $ORACLE_BASE
+echo $ORACLE_HOME
+echo $ORACLE_SID
+echo $PATH
+
+
+==============================================================================
+⬇️ 08. DOWNLOAD E EXTRAÇÃO DO ORACLE DATABASE 19C
+==============================================================================
+
+O arquivo oficial de instalação do Oracle Database 19c para Linux é:
+
+LINUX.X64_193000_db_home.zip
+
+
+Envie o arquivo para o diretório Oracle Home:
+
+/u01/app/oracle/product/19.0.0/dbhome_1
+
+
+Exemplo com SCP:
+
+scp LINUX.X64_193000_db_home.zip oracle@IP_DO_SERVIDOR:/u01/app/oracle/product/19.0.0/dbhome_1
+
+
+Acesse como oracle:
+
+su - oracle
+
+
+Entre no Oracle Home:
+
+cd $ORACLE_HOME
+
+
+Extraia o instalador:
+
+unzip LINUX.X64_193000_db_home.zip
+
+
+Valide:
+
+ls -lh
+
+
+==============================================================================
+⚙️ 09. INSTALAÇÃO DO SOFTWARE ORACLE 19C
+==============================================================================
+
+------------------------------------------------------------------------------
+🖥️ Instalação com interface gráfica
+------------------------------------------------------------------------------
+
+Acesse o Oracle Home:
+
+cd $ORACLE_HOME
+
+
+Execute o instalador:
+
+./runInstaller
+
+
+No instalador, utilize o fluxo abaixo:
+
+  01. Set Up Software Only
+  02. Single Instance Database Installation
+  03. Enterprise Edition
+  04. Oracle Base:
+      /u01/app/oracle
+
+  05. Oracle Home:
+      /u01/app/oracle/product/19.0.0/dbhome_1
+
+  06. Inventory Directory:
+      /u01/app/oraInventory
+
+  07. OSDBA Group:
+      dba
+
+  08. OSOPER Group:
+      oper, se existir
+
+  09. Finalizar instalação
+
+
+------------------------------------------------------------------------------
+🤖 Instalação em modo Silent
+------------------------------------------------------------------------------
+
+cd $ORACLE_HOME
+
+./runInstaller -silent \
+-responseFile $ORACLE_HOME/install/response/db_install.rsp \
+oracle.install.option=INSTALL_DB_SWONLY \
+ORACLE_HOSTNAME=oracle19c \
+UNIX_GROUP_NAME=oinstall \
+INVENTORY_LOCATION=/u01/app/oraInventory \
+SELECTED_LANGUAGES=en,en_GB,pt_BR \
+ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1 \
+ORACLE_BASE=/u01/app/oracle \
+oracle.install.db.InstallEdition=EE \
+oracle.install.db.OSDBA_GROUP=dba \
+oracle.install.db.OSOPER_GROUP=dba \
+oracle.install.db.OSBACKUPDBA_GROUP=dba \
+oracle.install.db.OSDGDBA_GROUP=dba \
+oracle.install.db.OSKMDBA_GROUP=dba \
+oracle.install.db.OSRACDBA_GROUP=dba \
+DECLINE_SECURITY_UPDATES=true
+
+
+==============================================================================
+🔐 10. EXECUÇÃO DOS SCRIPTS ROOT
+==============================================================================
+
+Durante ou ao final da instalação, o Oracle solicitará a execução de scripts
+com o usuário root.
+
+Acesse outro terminal como root e execute:
+
+/u01/app/oraInventory/orainstRoot.sh
+
+/u01/app/oracle/product/19.0.0/dbhome_1/root.sh
+
+
+Após executar os scripts, retorne ao instalador e finalize o processo.
+
+
+==============================================================================
+📡 11. CONFIGURAÇÃO DO LISTENER
+==============================================================================
+
+Acesse como oracle:
+
+su - oracle
+
+
+Execute o assistente de rede:
+
+netca
+
+
+Fluxo recomendado:
+
+  01. Listener Configuration
+  02. Add
+  03. Listener Name: LISTENER
+  04. Protocol: TCP
+  05. Port: 1521
+  06. Finish
+
+
+Valide o Listener:
+
+lsnrctl status
+
+
+Caso não esteja iniciado:
+
+lsnrctl start
+
+
+==============================================================================
+🗃️ 12. CRIAÇÃO DO BANCO DE DADOS
+==============================================================================
+
+------------------------------------------------------------------------------
+🖥️ Criação via DBCA gráfico
+------------------------------------------------------------------------------
+
+Execute:
+
+dbca
+
+
+Fluxo recomendado:
+
+  01. Create a Database
+  02. Advanced Configuration
+  03. Oracle Single Instance Database
+  04. General Purpose or Transaction Processing
+  05. Global Database Name: ORCL
+  06. SID: ORCL
+  07. Create as Container Database: opcional
+  08. PDB Name: PDB1, se utilizar Multitenant
+  09. Storage: File System
+  10. Database Files Location:
+      /u02/oradata
+
+  11. Fast Recovery Area:
+      /u02/fast_recovery_area
+
+  12. Character Set:
+      AL32UTF8
+
+  13. Enterprise Manager Express:
+      opcional
+
+  14. Finish
+
+
+------------------------------------------------------------------------------
+🤖 Criação via DBCA Silent
+------------------------------------------------------------------------------
+
+dbca -silent -createDatabase \
+-templateName General_Purpose.dbc \
+-gdbName ORCL \
+-sid ORCL \
+-responseFile NO_VALUE \
+-characterSet AL32UTF8 \
+-sysPassword "SenhaForte123" \
+-systemPassword "SenhaForte123" \
+-createAsContainerDatabase true \
+-numberOfPDBs 1 \
+-pdbName PDB1 \
+-pdbAdminPassword "SenhaForte123" \
+-databaseType MULTIPURPOSE \
+-memoryMgmtType auto_sga \
+-totalMemory 4096 \
+-storageType FS \
+-datafileDestination "/u02/oradata" \
+-recoveryAreaDestination "/u02/fast_recovery_area" \
+-emConfiguration NONE
+
+
+⚠️ Atenção:
+Substitua as senhas utilizadas no exemplo por senhas fortes e compatíveis
+com a política de segurança do ambiente.
+
+
+==============================================================================
+🧪 13. VALIDAÇÃO DA INSTÂNCIA
+==============================================================================
+
+Acesse o SQL*Plus:
+
+sqlplus / as sysdba
+
+
+Valide o status da instância:
+
+select instance_name, status from v$instance;
+
+
+Valide o banco:
+
+select name, open_mode from v$database;
+
+
+Caso o banco não esteja iniciado:
+
+startup;
+
+
+Caso utilize CDB/PDB, valide os PDBs:
+
+show pdbs;
+
+
+Abra os PDBs:
+
+alter pluggable database all open;
+
+
+Configure abertura automática dos PDBs:
+
+alter pluggable database all save state;
+
+
+==============================================================================
+🌐 14. CONFIGURAÇÃO DE CONECTIVIDADE
+==============================================================================
+
+------------------------------------------------------------------------------
+📌 Validação do Listener
+------------------------------------------------------------------------------
+
+lsnrctl status
+
+
+------------------------------------------------------------------------------
+📌 Validação dos serviços registrados
+------------------------------------------------------------------------------
+
+sqlplus / as sysdba
+
+select name from v$services;
+
+
+------------------------------------------------------------------------------
+📌 Arquivo tnsnames.ora
+------------------------------------------------------------------------------
+
+Caminho:
+
+$ORACLE_HOME/network/admin/tnsnames.ora
+
+
+Exemplo:
+
+ORCL =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = oracle19c)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = ORCL)
+    )
+  )
+
+PDB1 =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = oracle19c)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = PDB1)
+    )
+  )
+
+
+Teste:
+
+tnsping ORCL
+tnsping PDB1
+
+
+Conexão local:
+
+sqlplus system@ORCL
+
+
+Conexão no PDB:
+
+sqlplus system@PDB1
+
+
+==============================================================================
+🚀 15. CONFIGURAÇÃO DE INICIALIZAÇÃO AUTOMÁTICA
+==============================================================================
+
+------------------------------------------------------------------------------
+📌 Validar o arquivo /etc/oratab
+------------------------------------------------------------------------------
+
+cat /etc/oratab
+
+
+Exemplo esperado:
+
+ORCL:/u01/app/oracle/product/19.0.0/dbhome_1:Y
+
+
+Se estiver com N, altere para Y:
+
+vi /etc/oratab
+
+
+------------------------------------------------------------------------------
+📌 Criar serviço systemd
+------------------------------------------------------------------------------
+
+Crie o arquivo:
+
+vi /etc/systemd/system/oracle19c.service
+
+
+Conteúdo:
+
+[Unit]
+Description=Oracle Database 19c
+After=network.target
+
+[Service]
+Type=forking
+User=oracle
+Group=oinstall
+Environment=ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+Environment=ORACLE_SID=ORCL
+ExecStart=/u01/app/oracle/product/19.0.0/dbhome_1/bin/dbstart /u01/app/oracle/product/19.0.0/dbhome_1
+ExecStop=/u01/app/oracle/product/19.0.0/dbhome_1/bin/dbshut /u01/app/oracle/product/19.0.0/dbhome_1
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
+
+
+Recarregue o systemd:
+
+systemctl daemon-reload
+
+
+Habilite o serviço:
+
+systemctl enable oracle19c
+
+
+Inicie o serviço:
+
+systemctl start oracle19c
+
+
+Valide:
+
+systemctl status oracle19c
+
+
+==============================================================================
+✅ 16. CHECKLIST FINAL
+==============================================================================
+
+╔════════════════════════════════════╦════════════════════════════════════════╗
+║ Validação                          ║ Comando                                ║
+╠════════════════════════════════════╬════════════════════════════════════════╣
+║ Variáveis Oracle                   ║ env | grep ORACLE                      ║
+║ Listener ativo                     ║ lsnrctl status                         ║
+║ Instância aberta                   ║ select status from v$instance;         ║
+║ Banco aberto                       ║ select open_mode from v$database;      ║
+║ PDB aberto                         ║ show pdbs;                             ║
+║ Serviços registrados               ║ select name from v$services;           ║
+║ Conexão local                      ║ sqlplus / as sysdba                    ║
+║ Conexão via TNS                    ║ sqlplus system@ORCL                    ║
+║ Inicialização automática           ║ systemctl status oracle19c             ║
+╚════════════════════════════════════╩════════════════════════════════════════╝
+
+
+==============================================================================
+🧰 17. COMANDOS ÚTEIS
+==============================================================================
+
+------------------------------------------------------------------------------
+📡 Listener
+------------------------------------------------------------------------------
+
+lsnrctl start
+lsnrctl stop
+lsnrctl status
+
+
+------------------------------------------------------------------------------
+🗃️ Banco de Dados
+------------------------------------------------------------------------------
+
+sqlplus / as sysdba
+
+startup;
+
+shutdown immediate;
+
+select instance_name, status from v$instance;
+
+select name, open_mode from v$database;
+
+show pdbs;
+
+
+------------------------------------------------------------------------------
+📁 Caminhos importantes
+------------------------------------------------------------------------------
+
+Oracle Base:
+  /u01/app/oracle
+
+Oracle Home:
+  /u01/app/oracle/product/19.0.0/dbhome_1
+
+Inventory:
+  /u01/app/oraInventory
+
+Datafiles:
+  /u02/oradata
+
+Fast Recovery Area:
+  /u02/fast_recovery_area
+
+Arquivos de rede:
+  $ORACLE_HOME/network/admin
+
+Alert Log:
+  $ORACLE_BASE/diag/rdbms/ORCL/ORCL/trace
+
+Arquivo oratab:
+  /etc/oratab
+
+
+==============================================================================
+🚨 18. TROUBLESHOOTING BÁSICO
+==============================================================================
+
+------------------------------------------------------------------------------
+❌ Erro: Listener não inicia
+------------------------------------------------------------------------------
+
+Verifique:
+
+lsnrctl status
+lsnrctl start
+cat $ORACLE_HOME/network/admin/listener.ora
+
+------------------------------------------------------------------------------
+❌ Erro: Banco não conecta via TNS
+------------------------------------------------------------------------------
+
+Verifique:
+
+tnsping ORCL
+lsnrctl status
+cat $ORACLE_HOME/network/admin/tnsnames.ora
+
+
+------------------------------------------------------------------------------
+❌ Erro: PDB não abre automaticamente
+------------------------------------------------------------------------------
+
+Acesse:
+
+sqlplus / as sysdba
+
+Execute:
+
+show pdbs;
+
+alter pluggable database all open;
+
+alter pluggable database all save state;
+
+
+------------------------------------------------------------------------------
+❌ Erro: Falta de bibliotecas
+------------------------------------------------------------------------------
+
+Instale os pacotes necessários:
+
+yum install -y libaio libaio-devel ksh compat-openssl10
+
+==============================================================================
+🏁 FIM DA DOCUMENTAÇÃO
+==============================================================================
