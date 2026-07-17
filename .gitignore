@@ -1,0 +1,49 @@
+# Credenciais e variáveis locais
+.env
+.env.*
+!.env.example
+credentials/
+secrets/
+
+# Oracle Net e arquivos de autenticação reais
+tnsnames.ora
+listener.ora
+sqlnet.ora
+orapw*
+spfile*
+*.sso
+*.p12
+*.pem
+*.key
+*.jks
+
+# Dumps, backups e logs
+*.dmp
+*.dump
+*.bkp
+*.backup
+*.arc
+*.log
+nohup.out
+
+# Instaladores, patches e binários
+*.zip
+*.rar
+*.7z
+*.rpm
+*.bin
+LINUX.X64*
+p[0-9]*
+
+# Arquivos temporários
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE e sistema operacional
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
