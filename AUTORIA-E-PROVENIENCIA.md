@@ -4,7 +4,5 @@ Este repositório documenta um projeto executado e organizado por Patrick Cecíl
 
 - procedimentos, seleção de evidências e responsabilidade editorial: Patrick Cecílio;
 - comandos Oracle, nomes de produtos e saídas de ferramentas pertencem aos respectivos fornecedores;
-- capturas foram anonimizadas antes da publicação;
-- a antiga pasta `sql-server`, composta por toolkits externos, foi removida para manter o escopo exclusivamente Oracle.
 
 GitHub: https://github.com/PatrickCecilio

@@ -101,7 +101,7 @@ SHOW PDBS;
 SELECT banner_full FROM v$version;
 ```
 
-O exemplo de instalação em [`scripts/shell/install-software.example.sh`](scripts/shell/install-software.example.sh) utiliza variáveis fictícias e não contém credenciais.
+O exemplo de instalação em [`scripts/shell/install-software.example.sh`](scripts/shell/install-software.example.sh) utiliza variáveis fictícias.
 
 ## Validação
 
@@ -150,7 +150,7 @@ O datapatch indicou um componente SDO inválido na PDB seed e recomendou a recom
 
 ### Sistema operacional e armazenamento
 
-![Validação anonimizada do sistema operacional e storage](images/01-os-and-storage-validation.png)
+![Validação do sistema operacional e storage](images/01-os-and-storage-validation.png)
 
 ### Instalação do pacote de pré-requisitos
 
@@ -162,7 +162,7 @@ O datapatch indicou um componente SDO inválido na PDB seed e recomendou a recom
 
 ### Criação do ambiente Multitenant
 
-![Criação anonimizada da CDB e PDB](images/04-multitenant-database-created.png)
+![Criação da CDB e PDB](images/04-multitenant-database-created.png)
 
 ### Aplicação do Release Update
 
@@ -184,7 +184,6 @@ O datapatch indicou um componente SDO inválido na PDB seed e recomendou a recom
 - parada controlada do banco antes do patch binário;
 - execução do datapatch após a atualização do Oracle Home;
 - validação do resultado no dicionário de dados;
-- remoção de credenciais e identificadores antes da publicação.
 
 ## Aprendizados demonstrados
 
@@ -194,10 +193,6 @@ O datapatch indicou um componente SDO inválido na PDB seed e recomendou a recom
 - atualização do Oracle Home;
 - diagnóstico de avisos de instalação e patch;
 - validação técnica de uma atualização.
-
-## Aviso de segurança
-
-As imagens deste repositório são cópias anonimizadas. Nomes, IPs, credenciais, servidores, CDBs, PDBs e outros identificadores foram removidos. Os comandos devem ser revisados e adaptados antes do uso em qualquer ambiente.
 
 ## Autor
 
