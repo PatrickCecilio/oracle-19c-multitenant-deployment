@@ -1,0 +1,19 @@
+name: Validar repositório Oracle
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar Shell sem executar procedimentos
+        run: find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+      - name: Verificar toolkits removidos
+        run: test ! -d sql-server
