@@ -80,6 +80,15 @@ O [procedimento detalhado](docs/procedure.md) relaciona cada etapa às evidênci
 
 ## Principais comandos
 
+### Classificação de impacto
+
+| Nível | Etapa deste projeto | Critério de execução |
+|---|---|---|
+| D0 — observação | `df -h`, `SHOW PDBS`, consulta a `V$VERSION` e `CDB_REGISTRY_SQLPATCH` | Confirmar host, CDB/PDB e versão antes e depois da mudança. |
+| D1 — preparação | Instalação de pré requisitos e criação de diretórios | Conferir sistema operacional, espaço, proprietário e caminhos. |
+| D2 — indisponibilidade | Instalação, criação da CDB/PDB e aplicação de Release Update com OPatch/datapatch | Usar janela, backup, plano de retorno e validação binária e SQL. |
+| D3 — recuperação destrutiva | Não faz parte do fluxo principal de implantação | Consultar o [índice de risco operacional](https://github.com/PatrickCecilio/biblioteca-tecnica-dba/blob/main/COMANDOS-POR-RISCO.md) antes de usar procedimentos de restore, flashback ou remoção. |
+
 Validação inicial:
 
 ```bash
