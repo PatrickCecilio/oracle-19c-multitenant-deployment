@@ -125,6 +125,16 @@ As evidências registram:
 - status `SUCCESS` no registro SQL do patch;
 - versão final 19.28 do Oracle Database.
 
+### Matriz de evidências
+
+| Marco | Evidência publicada | Critério observado |
+|---|---|---|
+| Instalação e criação da CDB/PDB | [Instalação silenciosa](images/03-silent-software-installation.png) e [ambiente Multitenant](images/04-multitenant-database-created.png) | Software e banco criados no laboratório. |
+| Atualização binária e SQL | [OPatch](images/05-release-update-applied.png) e [datapatch](images/06-datapatch-completed.png) | Release Update aplicado e etapa SQL concluída. |
+| Resultado final | [Consulta de validação](images/07-release-update-validation.png) | `CDB_REGISTRY_SQLPATCH` registra `SUCCESS` para o patch `37960098` nos containers 1 e 3; `V$VERSION` mostra Oracle 19c 19.28. |
+
+As imagens comprovam o estado exibido no laboratório. Este projeto não publica medição de duração da mudança, RPO ou RTO; esses indicadores exigem cronologia e teste de recuperação registrados.
+
 ## Problemas encontrados
 
 ### Ausência de DISPLAY
