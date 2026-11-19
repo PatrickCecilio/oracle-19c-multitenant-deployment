@@ -219,7 +219,7 @@ Patrick Cecílio
 
 GitHub: [PatrickCecilio](https://github.com/PatrickCecilio)
 
-LinkedIn: a adicionar
+LinkedIn: [patrickcecilio](https://www.linkedin.com/in/patrickcecilio/)
 
 ## English summary
 
